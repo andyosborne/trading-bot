@@ -104,7 +104,7 @@ venv.bak/
 .mypy_cache/
 
 # vscode config
-.vscode
+#.vscode
 
 # poetry stuff
 poetry.lock
