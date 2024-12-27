@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import numpy as np
 
-import keras.backend as K
+import keras
 
 
 # Formats Position
@@ -48,6 +48,6 @@ def switch_k_backend_device():
 
     Faster computation on CPU (if using tensorflow-gpu).
     """
-    if K.backend() == "tensorflow":
+    if keras.backend.backend() == "tensorflow":
         logging.debug("switching to TensorFlow for CPU")
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"

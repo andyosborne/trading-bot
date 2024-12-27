@@ -41,7 +41,18 @@ You can download Historical Financial data from [Yahoo! Finance](https://ca.fina
 
 ## Getting Started
 
+Optional (you should do this if you have a nice GPU) - ensure you have CUDA libraries installed:
+
+```bash
+sudo apt install nvidia-cuda-toolkit
+```
+
 In order to use this project, you'll need to install the required python packages:
+
+```bash
+conda create --name "tf2" python=3.11
+conda activate tf2
+```
 
 ```bash
 pip3 install -r requirements.txt

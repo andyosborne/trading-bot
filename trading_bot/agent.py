@@ -4,10 +4,11 @@ from collections import deque
 
 import numpy as np
 import tensorflow as tf
-import keras.backend as K
 
-from keras.models import Sequential
+import keras
 from keras.models import load_model, clone_model
+from keras import Sequential
+
 from keras.layers import Dense
 from keras.optimizers import Adam
 
@@ -19,10 +20,10 @@ def huber_loss(y_true, y_pred, clip_delta=1.0):
             https://jaromiru.com/2017/05/27/on-using-huber-loss-in-deep-q-learning/
     """
     error = y_true - y_pred
-    cond = K.abs(error) <= clip_delta
-    squared_loss = 0.5 * K.square(error)
-    quadratic_loss = 0.5 * K.square(clip_delta) + clip_delta * (K.abs(error) - clip_delta)
-    return K.mean(tf.where(cond, squared_loss, quadratic_loss))
+    cond = tf.abs(error) <= clip_delta
+    squared_loss = 0.5 * tf.square(error)
+    quadratic_loss = 0.5 * tf.square(clip_delta) + clip_delta * (tf.abs(error) - clip_delta)
+    return tf.reduce_mean(tf.where(cond, squared_loss, quadratic_loss))
 
 
 class Agent:
@@ -48,7 +49,7 @@ class Agent:
         self.learning_rate = 0.001
         self.loss = huber_loss
         self.custom_objects = {"huber_loss": huber_loss}  # important for loading the model from memory
-        self.optimizer = Adam(lr=self.learning_rate)
+        self.optimizer = Adam(learning_rate=self.learning_rate)
 
         if pretrained and self.model_name is not None:
             self.model = self.load()
@@ -99,7 +100,7 @@ class Agent:
     def train_experience_replay(self, batch_size):
         """Train on previous experiences in memory
         """
-        mini_batch = random.sample(self.memory, batch_size)
+        mini_batch = random.sample(self.memory, batch_size) # randomly select batch_size (32 default) "experiences" - each experience is state(t), state(t+1) (10 consecutive stock price representations for t and t+1)
         X_train, y_train = [], []
         
         # DQN
@@ -108,12 +109,14 @@ class Agent:
                 if done:
                     target = reward
                 else:
-                    # approximate deep q-learning equation
-                    target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
+                    # approximate deep q-learning equation NB we add the predicted Q because we're interested in the long-term overall reward (for which we only have a prediction), not just the immediate reward.
+                    QsaAll = self.model.predict(next_state)[0] # predict Q(s,a=[0,1,2]) for next_state, i.e. Q given all possible actions
+                    maxQ = np.amax(QsaAll) # find max Q achievalble out of all possible actions
+                    target = reward + self.gamma * maxQ # Estimate to the   Bellman equation. Basically we predicted the discounted rewards of the next states up to completion, and add to the current reward.
 
-                # estimate q-values based on current state
+                # estimate q-values based on current state: predict target value for all 3 actions given current state
                 q_values = self.model.predict(state)
-                # update the target for current action based on discounted reward
+                # update the target (predicted) for current action (the actual action taken) based on discounted reward
                 q_values[0][action] = target
 
                 X_train.append(state[0])
@@ -167,7 +170,7 @@ class Agent:
         # update q-function parameters based on huber loss gradient
         loss = self.model.fit(
             np.array(X_train), np.array(y_train),
-            epochs=1, verbose=0
+            epochs=1, verbose=1
         ).history["loss"][0]
 
         # as the training goes on we want the agent to
